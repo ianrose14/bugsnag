@@ -17,7 +17,7 @@ var (
 	AppVersion          string
 	OSVersion           string
 	ReleaseStage        = "production"
-	NotifyReleaseStages = []string{"production"}
+	NotifyReleaseStages = []string{ReleaseStage}
 	AutoNotify          = true
 	UseSSL              = false
 	Verbose             = false
@@ -125,16 +125,26 @@ func Notify(err error) error {
 // NotifyRequest sends an error to bugsnag, and sets request
 // URL as the event context.
 func NotifyRequest(err error, r *http.Request) error {
-	return New(err).WithContext(r.URL.String()).Notify()
+	return New(err).withRequest(r).Notify()
 }
 
 // CapturePanic reports panics happening while processing a HTTP request
 func CapturePanic(r *http.Request) {
+	OnCapturePanic(r, func(event EventDescriber) {})
+}
+
+// OnCapturePanic allows to set bugsnag variables before the
+// error is sent off after a HTTP request handler panicked.
+func OnCapturePanic(r *http.Request, handler func(event EventDescriber)) {
 	if recovered := recover(); recovered != nil {
+		var e error
 		if err, ok := recovered.(error); ok {
-			NotifyRequest(err, r)
+			e = err
 		} else if err, ok := recovered.(string); ok {
-			NotifyRequest(errors.New(err), r)
+			e = errors.New(err)
+		}
+		if e != nil {
+			New(e).withRequest(r).withCallback(handler).Notify()
 		}
 		panic(recovered)
 	}
@@ -155,6 +165,33 @@ func New(err error) *bugsnagEvent {
 			},
 		},
 	}
+}
+
+// Notify sends the configured event off to bugsnag.
+func (event *bugsnagEvent) Notify() error {
+	for _, stage := range NotifyReleaseStages {
+		if stage == event.ReleaseStage {
+			return send([]*bugsnagEvent{event})
+		}
+	}
+	return nil
+}
+
+func (event *bugsnagEvent) withRequest(r *http.Request) *bugsnagEvent {
+	return event.WithContext(r.URL.String())
+}
+
+func (event *bugsnagEvent) withCallback(callback func(describer EventDescriber)) *bugsnagEvent {
+	callback(event)
+	return event
+}
+
+// EventDescriber is the public interface of a bugsnag event
+type EventDescriber interface {
+	WithUserID(userID string) *bugsnagEvent
+	WithContext(context string) *bugsnagEvent
+	WithMetaDataValues(tab string, values map[string]interface{}) *bugsnagEvent
+	WithMetaData(tab string, name string, value interface{}) *bugsnagEvent
 }
 
 // WithUserID sets the user_id property on the bugsnag event.
@@ -188,14 +225,3 @@ func (event *bugsnagEvent) WithMetaData(tab string, name string, value interface
 	event.MetaData[tab][name] = value
 	return event
 }
-
-// Notify sends the configured event off to bugsnag.
-func (event *bugsnagEvent) Notify() error {
-	for _, stage := range NotifyReleaseStages {
-		if stage == event.ReleaseStage {
-			return send([]*bugsnagEvent{event})
-		}
-	}
-	return nil
-}
-
