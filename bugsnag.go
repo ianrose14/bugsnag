@@ -125,7 +125,7 @@ func Notify(err error) error {
 // NotifyRequest sends an error to bugsnag, and sets request
 // URL as the event context.
 func NotifyRequest(err error, r *http.Request) error {
-	return New(err).withRequest(r).Notify()
+	return New(err).WithRequest(r).Notify()
 }
 
 // CapturePanic reports panics happening while processing a HTTP request
@@ -144,7 +144,7 @@ func OnCapturePanic(r *http.Request, handler func(event EventDescriber)) {
 			e = errors.New(err)
 		}
 		if e != nil {
-			New(e).withRequest(r).withCallback(handler).Notify()
+			New(e).WithRequest(r).withCallback(handler).Notify()
 		}
 		panic(recovered)
 	}
@@ -177,7 +177,7 @@ func (event *bugsnagEvent) Notify() error {
 	return nil
 }
 
-func (event *bugsnagEvent) withRequest(r *http.Request) *bugsnagEvent {
+func (event *bugsnagEvent) WithRequest(r *http.Request) *bugsnagEvent {
 	return event.WithContext(r.URL.String())
 }
 
