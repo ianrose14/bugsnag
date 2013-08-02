@@ -96,7 +96,7 @@ func send(events []*bugsnagEvent) error {
 
 func getStacktrace() []bugsnagStacktrace {
 	var stacktrace []bugsnagStacktrace
-	i := 3 // First 3 lines are our own functions, not interesting
+	i := 0
 	for {
 		if pc, file, line, ok := runtime.Caller(i); !ok {
 			break
