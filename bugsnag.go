@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -16,6 +18,7 @@ var (
 	APIKey              string
 	AppVersion          string
 	OSVersion           string
+	Hostname            string
 	ReleaseStage        = "production"
 	NotifyReleaseStages = []string{ReleaseStage}
 	AutoNotify          = true
@@ -27,6 +30,15 @@ var (
 		URL:     "https://github.com/toggl/bugsnag_client",
 	}
 )
+
+func init() {
+	if hostname, err := os.Hostname(); err != nil {
+		log.Println("Warning: could not detect hostname for Bugsnag client.")
+		Hostname = "unknown"
+	} else {
+		Hostname = hostname
+	}
+}
 
 type (
 	bugsnagNotifier struct {
@@ -169,6 +181,7 @@ func New(err error) *bugsnagEvent {
 
 // Notify sends the configured event off to bugsnag.
 func (event *bugsnagEvent) Notify() error {
+	event.WithMetaData("host", "name", Hostname)
 	for _, stage := range NotifyReleaseStages {
 		if stage == event.ReleaseStage {
 			return send([]*bugsnagEvent{event})
