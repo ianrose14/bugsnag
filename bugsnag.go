@@ -78,6 +78,9 @@ type (
 )
 
 func Error(err error) error {
+	if err == nil {
+		return err
+	}
 	if serr, ok := err.(*bugsnagError); ok {
 		return serr
 	}
