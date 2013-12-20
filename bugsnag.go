@@ -71,7 +71,18 @@ type (
 		Exceptions   []bugsnagException                `json:"exceptions"`
 		MetaData     map[string]map[string]interface{} `json:"metaData,omitempty"`
 	}
+	bugsnagError struct {
+		error
+		stacktrace []bugsnagStacktrace
+	}
 )
+
+func Error(err error) error {
+  if serr, ok := err.(*bugsnagError); ok {
+		return serr
+	}
+	return &bugsnagError{err, getStacktrace(err)}
+}
 
 func send(events []*bugsnagEvent) error {
 	if APIKey == "" {
@@ -106,8 +117,11 @@ func send(events []*bugsnagEvent) error {
 	return nil
 }
 
-func getStacktrace() []bugsnagStacktrace {
+func getStacktrace(err error) []bugsnagStacktrace {
 	var stacktrace []bugsnagStacktrace
+	if serr, ok := err.(*bugsnagError); ok {
+		return serr.stacktrace
+	}
 	i := 0
 	for {
 		if pc, file, line, ok := runtime.Caller(i); !ok {
@@ -173,7 +187,7 @@ func New(err error) *bugsnagEvent {
 			bugsnagException{
 				ErrorClass: reflect.TypeOf(err).String(),
 				Message:    err.Error(),
-				Stacktrace: getStacktrace(),
+				Stacktrace: getStacktrace(err),
 			},
 		},
 	}
