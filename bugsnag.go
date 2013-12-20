@@ -78,7 +78,7 @@ type (
 )
 
 func Error(err error) error {
-  if serr, ok := err.(*bugsnagError); ok {
+	if serr, ok := err.(*bugsnagError); ok {
 		return serr
 	}
 	return &bugsnagError{err, getStacktrace(err)}
