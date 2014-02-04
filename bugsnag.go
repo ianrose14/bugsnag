@@ -19,6 +19,7 @@ var (
 	AppVersion          string
 	OSVersion           string
 	Hostname            string
+	WorkingDir          string
 	ReleaseStage        = "production"
 	NotifyReleaseStages = []string{ReleaseStage}
 	AutoNotify          = true
@@ -37,6 +38,12 @@ func init() {
 		Hostname = "unknown"
 	} else {
 		Hostname = hostname
+	}
+	if wdir, err := os.Getwd(); err != nil {
+		log.Println("Warning: could not get the working directory for Bugsnag client.")
+		WorkingDir = "undetermined"
+	} else {
+		WorkingDir = wdir
 	}
 }
 
@@ -199,6 +206,7 @@ func New(err error) *bugsnagEvent {
 // Notify sends the configured event off to bugsnag.
 func (event *bugsnagEvent) Notify() error {
 	event.WithMetaData("host", "name", Hostname)
+	event.WithMetaData("host", "working_directory", WorkingDir)
 	for _, stage := range NotifyReleaseStages {
 		if stage == event.ReleaseStage {
 			return send([]*bugsnagEvent{event})
