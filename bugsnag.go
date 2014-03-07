@@ -91,7 +91,7 @@ func Error(err error) error {
 	if serr, ok := err.(*bugsnagError); ok {
 		return serr
 	}
-	return &bugsnagError{err, getStacktrace(err)}
+	return &bugsnagError{err, getStacktrace(err, 1)}
 }
 
 func send(events []*bugsnagEvent) error {
@@ -127,12 +127,16 @@ func send(events []*bugsnagEvent) error {
 	return nil
 }
 
-func getStacktrace(err error) []bugsnagStacktrace {
+func getStacktrace(err error, skipFrames int) []bugsnagStacktrace {
+	if skipFrames < 0 {
+		skipFrames = 0
+	}
+
 	var stacktrace []bugsnagStacktrace
 	if serr, ok := err.(*bugsnagError); ok {
 		return serr.stacktrace
 	}
-	i := 0
+	i := skipFrames + 3
 	for {
 		if pc, file, line, ok := runtime.Caller(i); !ok {
 			break
@@ -197,7 +201,24 @@ func New(err error) *bugsnagEvent {
 			bugsnagException{
 				ErrorClass: reflect.TypeOf(err).String(),
 				Message:    err.Error(),
-				Stacktrace: getStacktrace(err),
+				Stacktrace: getStacktrace(err, 0),
+			},
+		},
+	}
+}
+
+// New returns returns a bugsnag event instance, that can be further configured
+// before sending it.
+func NewWithSkipFrames(err error, skipFrames int) *bugsnagEvent {
+	return &bugsnagEvent{
+		AppVersion:   AppVersion,
+		OSVersion:    OSVersion,
+		ReleaseStage: ReleaseStage,
+		Exceptions: []bugsnagException{
+			bugsnagException{
+				ErrorClass: reflect.TypeOf(err).String(),
+				Message:    err.Error(),
+				Stacktrace: getStacktrace(err, skipFrames),
 			},
 		},
 	}
